@@ -1,0 +1,73 @@
+name: Game Service CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: ${{ secrets.GKE_PROJECT }}
+  CLUSTER_NAME: lugx-cluster
+  CLUSTER_REGION: us-central1
+  IMAGE_NAME: game-service
+  TAG: prod
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🔄 Checkout repository
+        uses: actions/checkout@v3
+
+      - name: ☕ Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: 🛠️ Build with Maven
+        run: mvn clean install -DskipTests
+
+      - name: 🔐 Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: '${{ secrets.GKE_SA_KEY }}'
+
+      - name: ⚙️ Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.GKE_PROJECT }}
+
+      - name: 🔌 Install GKE Auth Plugin
+        run: gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: 🐳 Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker --quiet
+
+      - name: 🏗️ Build Docker image
+        run: |
+          IMAGE_URI="gcr.io/${PROJECT_ID}/${IMAGE_NAME}:${TAG}"
+          docker build -t $IMAGE_URI .
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+
+      - name: 🚀 Push Docker image to GCR
+        run: docker push ${{ env.IMAGE_URI }}
+
+      - name: 🔑 Get GKE Credentials
+        run: |
+          gcloud container clusters get-credentials "$CLUSTER_NAME" \
+            --region "$CLUSTER_REGION" \
+            --project "$PROJECT_ID"
+
+      - name: 📦 Deploy Game Service
+        run: |
+          kubectl apply -f k8s/game-service-service.yaml --validate=false
+          kubectl apply -f k8s/game-service-deployment.yaml --validate=false
+          kubectl rollout restart deployment game-service
+
+      - name: ✅ Wait for rollout
+        run: kubectl rollout status deployment/game-service --timeout=60s
+
+      - name: 🔍 Check services and pods
+        run: kubectl get svc,pods -o wide
