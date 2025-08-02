@@ -17,6 +17,9 @@ spec:
       annotations:
         kompose.cmd: C:\Users\User\AppData\Local\Microsoft\WinGet\Packages\Kubernetes.kompose_Microsoft.Winget.Source_8wekyb3d8bbwe\kompose.exe convert -f docker-compose.yaml
         kompose.version: 1.36.0 (ae2a39403)
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8086"
       labels:
         io.kompose.service: game-service
     spec:
