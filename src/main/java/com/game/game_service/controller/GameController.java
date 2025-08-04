@@ -26,11 +26,6 @@ public class GameController {
         return repo.save(game);
     }
 
-    @GetMapping("/{id}")
-    public Game getGameById(@PathVariable Long id) {
-        return repo.findById(id).orElseThrow(() -> new RuntimeException("Game not found"));
-    }
-
     @PutMapping("/{id}")
     public Game updateGame(@PathVariable Long id, @RequestBody Game updated) {
         Game g = repo.findById(id).orElseThrow();
@@ -41,11 +36,21 @@ public class GameController {
         return repo.save(g);
 
     }
+ @PostMapping("/bulk")
+public List<Game> getGamesByIds(@RequestBody List<Long> ids) {
+    return repo.findAllById(ids);
+}
 
     @DeleteMapping("/{id}")
     public void deleteGame(@PathVariable Long id) {
         repo.deleteById(id);
     }
+    @GetMapping("/{id}")
+public ResponseEntity<Game> getGameById(@PathVariable Long id) {
+    return repo.findById(id)
+               .map(ResponseEntity::ok)
+               .orElse(ResponseEntity.notFound().build());
+}
 
 
 
